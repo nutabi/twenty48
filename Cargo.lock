@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "game2048"
+name = "twenty48"
 version = "0.1.0"

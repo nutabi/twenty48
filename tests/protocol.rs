@@ -6,7 +6,7 @@
 
 use std::collections::HashSet;
 
-use game2048::Engine;
+use twenty48::Engine;
 
 /// A board already packed to the left, so shifting left changes nothing.
 const PACKED_LEFT: &str = "2,4,8,16,4,8,16,32,8,16,32,64,16,32,64,128";
@@ -73,7 +73,7 @@ fn field(line: &str, key: &str) -> String {
 fn id_reports_the_protocol_revision_and_terminates() {
     let lines = run(&["id"]);
     assert_eq!(lines.len(), 2);
-    assert_eq!(field(&lines[0], "name"), "game2048");
+    assert_eq!(field(&lines[0], "name"), "twenty48");
     assert_eq!(field(&lines[0], "protocol"), "1");
     assert_eq!(
         field(&lines[0], "version"),
