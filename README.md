@@ -28,12 +28,12 @@ command, and it never speaks unprompted.
 ```
 $ cargo run
 id
-id name twenty48 version 0.1.0 protocol 1
+id name twenty48 version 0.1.1 protocol 1
 idok
 newgame seed 42
-ok seed 42 score 0 status playing moves 0 legal up,down,left,right board 0,0,0,0,2,0,0,0,0,0,0,2,0,0,0,0
+ok seed 42 score 0 status playing moves 0 undoable 0 redoable 0 legal up,down,left,right board 0,0,0,0,2,0,0,0,0,0,0,2,0,0,0,0
 move left
-ok moved true gained 0 spawn 0,0,2 seed 42 score 0 status playing moves 1 legal up,down,right board 2,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0
+ok moved true gained 0 spawn 0,0,2 seed 42 score 0 status playing moves 1 undoable 1 redoable 0 legal up,down,right board 2,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0
 quit
 ```
 
@@ -51,9 +51,9 @@ moves, packed two bits each.
 
 ```
 history
-ok game g1:q:-:A:B:g seed 42 score 0 status playing moves 1 ...
+ok game g1:q:-:A:B:g seed 42 score 0 status playing moves 1 undoable 1 ...
 replay game g1:q:-:A:B:g
-ok seed 42 score 0 status playing moves 1 ...
+ok seed 42 score 0 status playing moves 1 undoable 1 ...
 ```
 
 Undo rewinds the generator along with the board, so a move that was undone

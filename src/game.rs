@@ -151,6 +151,25 @@ impl Game {
         self.moves
     }
 
+    /// Returns how many moves [`Game::undo`] can step back through.
+    ///
+    /// Always equal to [`Game::moves`]: a move pushes onto this stack as it
+    /// increments the count, and an undo pops as it restores the decremented
+    /// one. Exposed anyway so a caller reads the answer rather than resting on
+    /// an invariant it cannot see.
+    pub fn undo_count(&self) -> usize {
+        self.undone.len()
+    }
+
+    /// Returns how many moves [`Game::redo`] can step forward into.
+    ///
+    /// Unlike [`Game::undo_count`] this follows from nothing else a caller can
+    /// observe, so without it the only way to learn whether a redo exists is
+    /// to perform one and undo it again.
+    pub fn redo_count(&self) -> usize {
+        self.redone.len()
+    }
+
     /// Returns the seed this game runs on.
     pub const fn seed(&self) -> u64 {
         self.rng.seed()
@@ -473,6 +492,65 @@ mod tests {
             MAX_SCORE.checked_add(MAX_TILE).is_some(),
             "a merge on top of the ceiling must still fit"
         );
+    }
+
+    #[test]
+    fn the_stack_depths_follow_undo_and_redo() {
+        let mut game = Game::with_seed(13);
+        assert_eq!((game.undo_count(), game.redo_count()), (0, 0));
+
+        for _ in 0..3 {
+            let direction = any_legal(&game);
+            game.step(direction).expect("legal move");
+        }
+        assert_eq!((game.undo_count(), game.redo_count()), (3, 0));
+
+        assert!(game.undo());
+        assert_eq!((game.undo_count(), game.redo_count()), (2, 1));
+
+        assert!(game.redo());
+        assert_eq!((game.undo_count(), game.redo_count()), (3, 0));
+    }
+
+    #[test]
+    fn the_undo_depth_never_disagrees_with_the_move_count() {
+        // The protocol documents `undoable` as always equal to `moves`, not
+        // merely usually, so the invariant is asserted rather than implied.
+        let mut game = Game::with_seed(29);
+
+        for _ in 0..40 {
+            let Some(direction) = game.available_moves().next() else {
+                break;
+            };
+            game.step(direction).expect("a listed move is legal");
+            assert_eq!(game.undo_count() as u32, game.moves(), "after a move");
+        }
+        while game.undo() {
+            assert_eq!(game.undo_count() as u32, game.moves(), "after an undo");
+        }
+        while game.redo() {
+            assert_eq!(game.undo_count() as u32, game.moves(), "after a redo");
+        }
+    }
+
+    #[test]
+    fn a_new_move_empties_the_redo_depth() {
+        let mut game = Game::with_seed(5);
+        let direction = any_legal(&game);
+
+        game.step(direction).expect("legal move");
+        assert!(game.undo());
+        assert_eq!(game.redo_count(), 1, "the undone move is redoable");
+
+        let replayed = any_legal(&game);
+        game.step(replayed).expect("legal move");
+        assert_eq!(game.redo_count(), 0, "a new move discards it");
+    }
+
+    #[test]
+    fn a_restored_position_starts_with_both_stacks_empty() {
+        let game = Game::restore(board([[2, 4, 0, 0], [0; 4], [0; 4], [0; 4]]), 64, 1);
+        assert_eq!((game.undo_count(), game.redo_count()), (0, 0));
     }
 
     #[test]
