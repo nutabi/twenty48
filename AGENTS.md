@@ -29,7 +29,9 @@ commit above survives a merge made through the GitHub UI.
 `.github/workflows/ci.yml` runs on every pull request and on `main`: tests,
 doctests, `fmt --check`, `clippy -D warnings`, `cargo doc` with warnings denied,
 a build against the declared MSRV, and a packaging dry run that also asserts
-AGENTS.md stays out of the tarball.
+nothing outside the crate's own files reaches the tarball. That last check is an
+allowlist, so a new top-level file has to be admitted deliberately rather than
+shipping by default.
 
 ## Release
 
@@ -105,7 +107,8 @@ normal; if it persists, read `https://docs.rs/crate/twenty48/<version>/builds`.
   query crates.io directly — a green dry run proves nothing about the name.
 - **`cargo package --list` fails on a dirty tree** and prints nothing to stdout.
   Grepping that empty output passes for the wrong reason; confirm the listing is
-  non-empty before trusting what it says about excluded files.
+  non-empty before trusting what it says about excluded files. CI now asserts
+  this, but the trap is the same in any local script.
 - **`rust-version` is what enables clippy's `incompatible_msrv` lint.** Declaring
   it is the only cheap way to verify an MSRV claim locally, and it has already
   caught a real incompatibility. CI additionally builds against that exact

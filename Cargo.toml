@@ -10,7 +10,11 @@ readme = "README.md"
 license = "MIT"
 keywords = ["2048", "game", "engine", "puzzle"]
 categories = ["games", "game-development", "command-line-utilities"]
-# Instructions for coding agents; of no use to consumers of the crate.
-exclude = ["AGENTS.md"]
+# Repository scaffolding, of no use to anyone consuming the crate: agent
+# instructions, the CI and release workflows, and git's own ignore file. What
+# stays is what a consumer or a downstream packager can use — the sources, the
+# tests they build and run from the tarball, the protocol reference and the
+# licence.
+exclude = ["AGENTS.md", ".github/", ".gitignore"]
 
 [dependencies]
