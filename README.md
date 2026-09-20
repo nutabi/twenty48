@@ -28,7 +28,7 @@ command, and it never speaks unprompted.
 ```
 $ cargo run
 id
-id name twenty48 version 0.1.0 protocol 1
+id name twenty48 version 0.1.1 protocol 1
 idok
 newgame seed 42
 ok seed 42 score 0 status playing moves 0 undoable 0 redoable 0 legal up,down,left,right board 0,0,0,0,2,0,0,0,0,0,0,2,0,0,0,0

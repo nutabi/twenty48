@@ -93,7 +93,7 @@ Identifies the engine. Takes no arguments.
 
 ```
 > id
-< id name twenty48 version 0.1.0 protocol 1
+< id name twenty48 version 0.1.1 protocol 1
 < idok
 ```
 
