@@ -205,24 +205,17 @@ impl Board {
     }
 
     /// Returns whether any direction is still playable.
+    ///
+    /// Defined in terms of [`Board::can_shift`] so it cannot drift from the
+    /// rules. A neighbour scan would be faster, but it has to re-derive when a
+    /// move exists and then disagrees at the edges — an empty board has empty
+    /// cells yet no move, and a pair of maximum tiles is equal yet cannot
+    /// merge. Those are exactly the cases where a contradictory
+    /// `status playing` / `legal none` response would escape.
     pub fn has_moves(&self) -> bool {
-        if self.empty_count() > 0 {
-            return true;
-        }
-
-        // The board is full, so a move exists only where equal neighbours do.
-        // Swapping the indices checks columns with the same comparison.
-        for line in 0..SIZE {
-            for step in 0..SIZE - 1 {
-                if self.exponent(line, step) == self.exponent(line, step + 1)
-                    || self.exponent(step, line) == self.exponent(step + 1, line)
-                {
-                    return true;
-                }
-            }
-        }
-
-        false
+        Direction::ALL
+            .into_iter()
+            .any(|direction| self.can_shift(direction))
     }
 }
 
@@ -326,6 +319,50 @@ mod tests {
         let grid = board([[2, 4, 2, 4], [4, 2, 4, 2], [2, 4, 2, 4], [4, 2, 4, 2]]);
         assert!(!grid.has_moves());
         assert!(Direction::ALL.iter().all(|&d| !grid.can_shift(d)));
+    }
+
+    #[test]
+    fn has_moves_never_disagrees_with_can_shift() {
+        let cases = [
+            ("empty", [[0; 4], [0; 4], [0; 4], [0; 4]]),
+            ("one tile", [[2, 0, 0, 0], [0; 4], [0; 4], [0; 4]]),
+            (
+                "locked",
+                [[2, 4, 2, 4], [4, 2, 4, 2], [2, 4, 2, 4], [4, 2, 4, 2]],
+            ),
+            (
+                "two maximum tiles, adjacent",
+                [
+                    [MAX_TILE, MAX_TILE, 2, 4],
+                    [4, 2, 4, 2],
+                    [2, 4, 2, 4],
+                    [4, 2, 4, 2],
+                ],
+            ),
+        ];
+
+        for (name, values) in cases {
+            let grid = board(values);
+            let any = Direction::ALL.iter().any(|&d| grid.can_shift(d));
+            assert_eq!(grid.has_moves(), any, "{name}");
+        }
+    }
+
+    #[test]
+    fn an_empty_board_has_no_moves() {
+        assert!(!Board::new().has_moves(), "nothing to slide");
+    }
+
+    #[test]
+    fn a_pair_of_maximum_tiles_is_not_a_move() {
+        // They are equal neighbours, but `collapse` refuses to merge them.
+        let grid = board([
+            [MAX_TILE, MAX_TILE, 2, 4],
+            [4, 2, 4, 2],
+            [2, 4, 2, 4],
+            [4, 2, 4, 2],
+        ]);
+        assert!(!grid.has_moves());
     }
 
     #[test]
