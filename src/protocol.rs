@@ -86,7 +86,7 @@ impl Engine {
     /// request. Ending the session over it would drop the game in progress,
     /// which is a far harsher response than every other bad input gets.
     pub fn execute_bytes(&mut self, line: &[u8]) -> Response {
-        match str::from_utf8(line) {
+        match std::str::from_utf8(line) {
             Ok(text) => self.execute(text),
             Err(_) => Response::line(error_line(BAD_ENCODING, None)),
         }

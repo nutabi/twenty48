@@ -117,3 +117,7 @@ score from overflowing on the next merge.
 **The protocol is append-only.** Nothing shipped is removed or repurposed; new
 information arrives as a new key, and clients ignore keys they do not recognise.
 `protocol 1` from `id` is what a client feature-detects on.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

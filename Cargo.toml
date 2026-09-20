@@ -2,5 +2,12 @@
 name = "game2048"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
+authors = ["Nguyen Thai Binh <ntb@nutabi.me>"]
+description = "A dependency-free 2048 engine for a 4x4 grid, driven by a line-oriented command protocol"
+readme = "README.md"
+license = "MIT"
+keywords = ["2048", "game", "engine", "puzzle", "solver"]
+categories = ["games", "game-development", "command-line-utilities"]
 
 [dependencies]
