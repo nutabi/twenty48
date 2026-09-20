@@ -7,6 +7,7 @@
 
 use crate::board::{Board, SIZE};
 use crate::direction::Direction;
+use crate::game::MAX_SCORE;
 
 /// The request named a command this version does not have.
 pub const UNKNOWN_COMMAND: &str = "unknown-command";
@@ -139,9 +140,15 @@ fn parse_setposition(arguments: &[&str]) -> Result<Command, ParseError> {
         match key {
             "board" => board = Some(parse_board(value)?),
             "score" => {
-                score = value
+                // Bounded like the board's tiles: a score no game can reach
+                // would otherwise overflow on the next merge.
+                let parsed: u32 = value
                     .parse()
                     .map_err(|_| ParseError::at(BAD_ARGUMENT, value))?;
+                if parsed > MAX_SCORE {
+                    return Err(ParseError::at(BAD_ARGUMENT, value));
+                }
+                score = parsed;
             }
             "seed" => seed = Some(parse_seed(value)?),
             other => return Err(ParseError::at(BAD_ARGUMENT, other)),
@@ -206,6 +213,7 @@ fn parse_board(token: &str) -> Result<Board, ParseError> {
 mod tests {
     use super::{BAD_ARGUMENT, BAD_POSITION, Command, UNKNOWN_COMMAND, parse};
     use crate::direction::Direction;
+    use crate::game::MAX_SCORE;
 
     fn reason(line: &str) -> &'static str {
         parse(line).expect_err("should not parse").reason
@@ -271,6 +279,23 @@ mod tests {
 
         assert_eq!(reason("setposition score 4"), BAD_ARGUMENT);
         assert_eq!(detail("setposition score 4"), Some("board".to_owned()));
+    }
+
+    #[test]
+    fn a_score_beyond_any_real_game_is_rejected() {
+        let board = "2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0";
+        assert!(parse(&format!("setposition board {board} score {MAX_SCORE}")).is_ok());
+        assert_eq!(
+            reason(&format!(
+                "setposition board {board} score {}",
+                MAX_SCORE + 1
+            )),
+            BAD_ARGUMENT
+        );
+        assert_eq!(
+            reason(&format!("setposition board {board} score {}", u32::MAX)),
+            BAD_ARGUMENT
+        );
     }
 
     #[test]

@@ -30,6 +30,6 @@ pub mod rng;
 
 pub use board::{Board, MAX_EXPONENT, MAX_TILE, SIZE};
 pub use direction::Direction;
-pub use game::{Game, Move, Status, WIN_EXPONENT};
+pub use game::{Game, MAX_SCORE, Move, Status, WIN_EXPONENT};
 pub use protocol::Engine;
 pub use rng::Rng;

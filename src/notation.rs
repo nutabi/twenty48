@@ -48,7 +48,7 @@
 
 use crate::board::{Board, MAX_EXPONENT, SIZE};
 use crate::direction::Direction;
-use crate::game::Game;
+use crate::game::{Game, MAX_SCORE};
 
 /// The format tag this module writes.
 pub const VERSION: &str = "g1";
@@ -222,6 +222,10 @@ pub fn decode(text: &str) -> Result<Game, Error> {
 
     let seed = from_radix(seed)?;
     let score = u32::try_from(from_radix(score)?).map_err(|_| Error::BadField)?;
+    if score > MAX_SCORE {
+        // No game reaches this, and replaying from it could overflow.
+        return Err(Error::BadField);
+    }
     let count = usize::try_from(from_radix(count)?).map_err(|_| Error::BadField)?;
 
     let mut game = if *start == NO_START {
@@ -247,7 +251,7 @@ mod tests {
     use super::{DIGITS, Error, VERSION, decode, encode, from_radix, to_radix};
     use crate::board::Board;
     use crate::direction::Direction;
-    use crate::game::Game;
+    use crate::game::{Game, MAX_SCORE};
 
     fn play(game: &mut Game, count: usize) {
         for _ in 0..count {
@@ -411,6 +415,19 @@ mod tests {
             decode("g1:q:-:F:A:").unwrap_err(),
             Error::BadField,
             "seeded score"
+        );
+    }
+
+    #[test]
+    fn a_score_beyond_any_real_game_is_rejected() {
+        let at_cap = to_radix(u64::from(MAX_SCORE));
+        let over = to_radix(u64::from(MAX_SCORE) + 1);
+        let board = "BAAAAAAAAAAAAAAA";
+
+        assert!(decode(&format!("g1:q:{board}:{at_cap}:A:")).is_ok());
+        assert_eq!(
+            decode(&format!("g1:q:{board}:{over}:A:")).unwrap_err(),
+            Error::BadField
         );
     }
 

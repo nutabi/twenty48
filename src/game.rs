@@ -1,11 +1,20 @@
 //! A game in progress: the board, the score, the spawn source and the history.
 
-use crate::board::Board;
+use crate::board::{Board, MAX_EXPONENT, MAX_TILE, SIZE};
 use crate::direction::Direction;
 use crate::rng::Rng;
 
 /// The exponent of the winning tile, 2048.
 pub const WIN_EXPONENT: u8 = 11;
+
+/// Largest score a 4x4 game can reach.
+///
+/// Building `2^n` entirely from 2-spawns scores `(n - 1) * 2^n`, so a board of
+/// 16 maximum tiles bounds the total. No real board holds 16 maximum tiles, so
+/// this is a generous ceiling rather than an exact maximum — but it is
+/// provable, and it keeps `score + gained` far inside `u32`, which is what
+/// stops a loaded score from overflowing on the next merge.
+pub const MAX_SCORE: u32 = (MAX_EXPONENT as u32 - 1) * MAX_TILE * (SIZE * SIZE) as u32;
 
 /// Chance, as one in `SPAWN_FOUR_ODDS`, that a spawned tile is a 4 rather than
 /// a 2.
@@ -92,7 +101,9 @@ impl Game {
 
     /// Resumes a game from a known board, score and seed.
     ///
-    /// Nothing is spawned and the history starts empty.
+    /// Nothing is spawned and the history starts empty. A `score` beyond
+    /// [`MAX_SCORE`] is accepted but is not something a game can reach;
+    /// callers parsing outside input should reject it first.
     pub fn restore(board: Board, score: u32, seed: u64) -> Self {
         Self {
             board,
@@ -174,7 +185,10 @@ impl Game {
         let previous = self.snapshot();
         let gained = self.board.shift(direction)?;
 
-        self.score += gained;
+        // Saturating so a score loaded through the library API cannot panic.
+        // Input arriving over the protocol is bounded by `MAX_SCORE`, which
+        // puts this far out of reach.
+        self.score = self.score.saturating_add(gained);
         self.moves += 1;
         self.undone.push((previous, direction));
         self.redone.clear();
@@ -247,8 +261,8 @@ impl Game {
 
 #[cfg(test)]
 mod tests {
-    use super::{Game, Status};
-    use crate::board::Board;
+    use super::{Game, MAX_SCORE, Status};
+    use crate::board::{Board, MAX_TILE};
     use crate::direction::Direction;
 
     fn board(values: [[u32; 4]; 4]) -> Board {
@@ -440,6 +454,25 @@ mod tests {
 
         assert_eq!(loaded.origin(), Some(&start), "the origin never moves");
         assert_eq!(loaded.origin_score(), 64);
+    }
+
+    #[test]
+    fn a_loaded_score_cannot_overflow_on_the_next_merge() {
+        // Two 65536 tiles merge for 131072 points on top of a huge score.
+        let start = board([[65536, 65536, 0, 0], [0; 4], [0; 4], [0; 4]]);
+        let mut game = Game::restore(start, u32::MAX - 5, 1);
+
+        game.step(Direction::Left).expect("legal move");
+        assert_eq!(game.score(), u32::MAX, "saturates rather than wrapping");
+    }
+
+    #[test]
+    fn the_score_ceiling_leaves_room_for_any_single_merge() {
+        assert_eq!(MAX_SCORE, 33_554_432);
+        assert!(
+            MAX_SCORE.checked_add(MAX_TILE).is_some(),
+            "a merge on top of the ceiling must still fit"
+        );
     }
 
     #[test]
