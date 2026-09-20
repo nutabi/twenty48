@@ -21,6 +21,16 @@ Never work on `main`. All branch will be feature-complete (passed test cases, et
 
 `main` is never fast-forwarded. Merge commits are explicit.
 
+`main` is protected: direct pushes are refused, for admins too. Every change
+lands through a pull request whose CI checks pass. The repository allows merge
+commits only — squash and rebase merging are disabled — so the explicit merge
+commit above survives a merge made through the GitHub UI.
+
+`.github/workflows/ci.yml` runs on every pull request and on `main`: tests,
+doctests, `fmt --check`, `clippy -D warnings`, `cargo doc` with warnings denied,
+a build against the declared MSRV, and a packaging dry run that also asserts
+AGENTS.md stays out of the tarball.
+
 ## Release
 
 A release is cut from `main` but never *committed* on it: the version bump is an
@@ -54,35 +64,32 @@ Releasing the crate does not imply bumping the other two, and usually must not.
    cargo publish --dry-run
    ```
 
-4. Merge into `main` with `--no-ff`, then push.
+4. Open a pull request and let CI pass.
 
-### From `main`
+### Merging the bump is the release
 
-5. Confirm the tree is clean and in sync with `origin/main`. Cargo refuses to
-   package uncommitted changes, so a clean tree is what makes the published
-   source equal to the commit.
-6. `cargo publish`.
-7. Confirm the published commit is the one intended, before tagging it:
+There is no manual publish step. `.github/workflows/release.yml` watches `main`,
+finds a version whose tag does not exist yet, and then, in this order:
 
-   ```sh
-   cat target/package/twenty48-<version>/.cargo_vcs_info.json   # sha1 == HEAD
-   ```
+1. Re-runs `fmt`, `clippy` and the tests. Publishing cannot be undone, so the
+   gate runs again rather than trusting that CI on the same commit has finished.
+2. `cargo publish`.
+3. Tags the published commit `v<version>` and pushes the tag.
+4. Creates the GitHub release from that tag.
 
-8. Tag that commit, annotated, and push the tag:
+The irreversible step is deliberately first: a failure at publish then leaves no
+tag or release claiming a version that was never published.
 
-   ```sh
-   git tag -a v<version> -m "twenty48 <version>"
-   git push origin v<version>
-   ```
+Every other merge to `main` is a no-op — the workflow stops the moment it finds
+the tag already present. So a release is exactly "merge a version bump", and
+nothing else can trigger one by accident.
 
-9. Create the GitHub release from the tag:
+This needs a `CARGO_REGISTRY_TOKEN` repository secret. Use a crates.io token
+created for CI and scoped to publish-update for this crate, not a copy of a
+local credential.
 
-   ```sh
-   gh release create v<version> --title "twenty48 <version>" --notes "..."
-   ```
-
-10. docs.rs builds asynchronously. A 404 immediately after publishing is normal;
-    if it persists, read `https://docs.rs/crate/twenty48/<version>/builds`.
+docs.rs builds asynchronously afterwards. A 404 immediately after publishing is
+normal; if it persists, read `https://docs.rs/crate/twenty48/<version>/builds`.
 
 ### Things that have bitten before
 
@@ -95,5 +102,9 @@ Releasing the crate does not imply bumping the other two, and usually must not.
   Grepping that empty output passes for the wrong reason; confirm the listing is
   non-empty before trusting what it says about excluded files.
 - **`rust-version` is what enables clippy's `incompatible_msrv` lint.** Declaring
-  it is the only cheap way to verify an MSRV claim without installing that
-  toolchain, and it has already caught a real incompatibility.
+  it is the only cheap way to verify an MSRV claim locally, and it has already
+  caught a real incompatibility. CI additionally builds against that exact
+  toolchain, so the claim is checked rather than inferred.
+- **Publishing the same version twice fails.** If a release run has to be redone,
+  bump the version rather than deleting the tag — the crates.io version is gone
+  either way, since a version can be yanked but never replaced.

@@ -1,0 +1,72 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A superseded run tells us nothing; cancel it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+# The crate has no dependencies, so a build is seconds and a cache would cost
+# more than it saves. That also keeps this file free of third-party actions.
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal --no-self-update
+      - run: cargo test --locked --all-targets
+      # --all-targets skips doctests, so they need their own run.
+      - run: cargo test --locked --doc
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal --component clippy,rustfmt --no-self-update
+      - run: cargo fmt --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal --no-self-update
+      # This is what docs.rs will build; a broken link should fail here first.
+      - run: cargo doc --locked --no-deps
+
+  msrv:
+    name: msrv
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Builds against the exact version Cargo.toml claims to support, rather
+      # than trusting clippy's lint alone.
+      - run: rustup toolchain install 1.85.0 --profile minimal --no-self-update
+      - run: cargo +1.85.0 check --locked --all-targets
+
+  package:
+    name: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal --no-self-update
+      # Catches a broken manifest or a stale exclude before release day.
+      - run: cargo publish --locked --dry-run
+      - name: AGENTS.md must not ship
+        run: |
+          if cargo package --locked --list | grep -q '^AGENTS.md$'; then
+            echo "AGENTS.md is in the package; check the exclude list" >&2
+            exit 1
+          fi
