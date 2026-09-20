@@ -6,7 +6,7 @@
 //! anything.
 //!
 //! ```
-//! use game2048::{Direction, Game};
+//! use twenty48::{Direction, Game};
 //!
 //! let mut game = Game::with_seed(42);
 //! if game.step(Direction::Left).is_some() {

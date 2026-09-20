@@ -24,7 +24,7 @@ use crate::rng;
 pub use command::{BAD_ARGUMENT, BAD_NOTATION, BAD_POSITION, Command, ParseError, UNKNOWN_COMMAND};
 
 /// Engine name reported by `id`.
-pub const NAME: &str = "game2048";
+pub const NAME: &str = "twenty48";
 /// Engine version reported by `id`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Protocol revision reported by `id`.

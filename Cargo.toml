@@ -1,14 +1,16 @@
 [package]
-name = "game2048"
+name = "twenty48"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["Nguyen Thai Binh <ntb@nutabi.me>"]
 description = "A dependency-free 2048 engine for a 4x4 grid, driven by a line-oriented command protocol"
-repository = "https://github.com/nutabi/game2048"
+repository = "https://github.com/nutabi/twenty48"
 readme = "README.md"
 license = "MIT"
-keywords = ["2048", "game", "engine", "puzzle", "solver"]
+keywords = ["2048", "game", "engine", "puzzle"]
 categories = ["games", "game-development", "command-line-utilities"]
+# Instructions for coding agents; of no use to consumers of the crate.
+exclude = ["AGENTS.md"]
 
 [dependencies]

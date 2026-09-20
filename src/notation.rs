@@ -34,7 +34,7 @@
 //! only if it draws spawns the same way.
 //!
 //! ```
-//! use game2048::{Direction, Game, notation};
+//! use twenty48::{Direction, Game, notation};
 //!
 //! let mut game = Game::with_seed(42);
 //! game.step(Direction::Left);

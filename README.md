@@ -1,4 +1,4 @@
-# game2048
+# twenty48
 
 A 2048 engine for a 4x4 grid, with a line-oriented command protocol in the
 spirit of a chess engine.
@@ -28,7 +28,7 @@ command, and it never speaks unprompted.
 ```
 $ cargo run
 id
-id name game2048 version 0.1.0 protocol 1
+id name twenty48 version 0.1.0 protocol 1
 idok
 newgame seed 42
 ok seed 42 score 0 status playing moves 0 legal up,down,left,right board 0,0,0,0,2,0,0,0,0,0,0,2,0,0,0,0
@@ -63,7 +63,7 @@ recorded. It also means undo-and-retry cannot reroll a spawn.
 ## Using it as a library
 
 ```rust
-use game2048::{Direction, Game, notation};
+use twenty48::{Direction, Game, notation};
 
 let mut game = Game::with_seed(42);
 game.step(Direction::Left);

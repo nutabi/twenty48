@@ -7,7 +7,7 @@
 
 use std::io::{self, BufRead, Write};
 
-use game2048::Engine;
+use twenty48::Engine;
 
 fn main() -> io::Result<()> {
     let mut stdin = io::stdin().lock();
