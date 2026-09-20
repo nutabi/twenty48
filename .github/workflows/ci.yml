@@ -64,9 +64,23 @@ jobs:
       - run: rustup toolchain install stable --profile minimal --no-self-update
       # Catches a broken manifest or a stale exclude before release day.
       - run: cargo publish --locked --dry-run
-      - name: AGENTS.md must not ship
+      # An allowlist rather than a list of exclusions, so a file that starts
+      # shipping has to be admitted deliberately. New sources and tests need no
+      # change here; a new top-level file does, which is the point.
+      - name: Only the crate's own files ship
         run: |
-          if cargo package --locked --list | grep -q '^AGENTS.md$'; then
-            echo "AGENTS.md is in the package; check the exclude list" >&2
+          listing=$(cargo package --locked --list)
+
+          # `--list` prints nothing when it fails, and an empty listing would
+          # satisfy the check below for the wrong reason.
+          if [ -z "$listing" ]; then
+            echo "cargo package --list printed nothing" >&2
+            exit 1
+          fi
+
+          allowed='^(\.cargo_vcs_info\.json|Cargo\.toml|Cargo\.toml\.orig|Cargo\.lock|LICENSE|README\.md|PROTOCOL\.md|src/|tests/)'
+          if unexpected=$(echo "$listing" | grep -vE "$allowed"); then
+            echo "these are in the package but should not be; check the exclude list in Cargo.toml:" >&2
+            echo "$unexpected" >&2
             exit 1
           fi
