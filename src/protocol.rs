@@ -177,13 +177,20 @@ fn resolve(seed: Option<u64>) -> u64 {
 ///
 /// The seed lives here rather than only on the commands that start a game, so
 /// any response is enough to reproduce the session.
+///
+/// `undoable` and `redoable` are here for the same reason `legal` is: a client
+/// should learn what a command will do before sending it. Without `redoable`
+/// the only way to find out whether a redo exists is to perform one, which is
+/// a mutation standing in for a question.
 fn state_of(game: &Game) -> String {
     format!(
-        "seed {} score {} status {} moves {} legal {} board {}",
+        "seed {} score {} status {} moves {} undoable {} redoable {} legal {} board {}",
         game.seed(),
         game.score(),
         status_token(game.status()),
         game.moves(),
+        game.undo_count(),
+        game.redo_count(),
         legal_token(game),
         board_token(game.board()),
     )

@@ -69,6 +69,16 @@ fn field(line: &str, key: &str) -> String {
         .1
 }
 
+/// Returns the `undoable` and `redoable` depths a response line reports.
+fn depths(line: &str) -> (u32, u32) {
+    let read = |key: &str| {
+        field(line, key)
+            .parse()
+            .unwrap_or_else(|_| panic!("{key} must be an integer in: {line}"))
+    };
+    (read("undoable"), read("redoable"))
+}
+
 #[test]
 fn id_reports_the_protocol_revision_and_terminates() {
     let lines = run(&["id"]);
@@ -253,6 +263,82 @@ fn empty_history_reports_the_right_slug() {
     let start = "newgame seed 1";
     assert_eq!(last(&[start, "undo"]), "error reason nothing-to-undo");
     assert_eq!(last(&[start, "redo"]), "error reason nothing-to-redo");
+}
+
+#[test]
+fn the_payload_says_in_advance_whether_undo_and_redo_will_work() {
+    let lines = run(&["newgame seed 42", "move left", "undo", "redo"]);
+    let (opened, moved, undone, redone) = (&lines[0], &lines[1], &lines[2], &lines[3]);
+
+    assert_eq!(depths(opened), (0, 0), "a fresh game can do neither");
+    assert_eq!(depths(moved), (1, 0), "a move is undoable, nothing to redo");
+    assert_eq!(depths(undone), (0, 1), "the undone move becomes redoable");
+    assert_eq!(depths(redone), (1, 0), "and redoing spends it again");
+}
+
+#[test]
+fn the_reported_depths_agree_with_what_undo_and_redo_actually_do() {
+    // The whole point of the two keys: a client that trusts them never meets
+    // `nothing-to-undo` or `nothing-to-redo`, and is never refused a step the
+    // payload said was there.
+    let mut engine = Engine::new();
+    let mut state = engine
+        .execute("newgame seed 42")
+        .lines
+        .pop()
+        .expect("newgame answers");
+
+    for command in [
+        "undo",
+        "redo",
+        "move left",
+        "move up",
+        "undo",
+        "undo",
+        "redo",
+        "move right",
+        "redo",
+        "undo",
+    ] {
+        let (undoable, redoable) = depths(&state);
+        let expected = match command {
+            "undo" => undoable > 0,
+            "redo" => redoable > 0,
+            _ => true,
+        };
+
+        let line = engine.execute(command).lines.pop().expect("a response");
+        let worked = !line.starts_with("error");
+        assert_eq!(
+            worked, expected,
+            "{command} with undoable {undoable} redoable {redoable}: {line}"
+        );
+
+        // An error leaves the game untouched, so the last good state stands.
+        if worked {
+            state = line;
+        }
+    }
+}
+
+#[test]
+fn the_payload_reports_the_stacks_setposition_and_replay_leave_behind() {
+    let script = [
+        "newgame seed 1",
+        "move left",
+        &format!("setposition board {PACKED_LEFT} seed 1"),
+    ];
+    let script: Vec<&str> = script.iter().map(AsRef::as_ref).collect();
+    assert_eq!(depths(&last(&script)), (0, 0), "setposition clears both");
+
+    let source = last(&["newgame seed 42", "move left", "move up", "undo", "history"]);
+    assert_eq!(depths(&source), (1, 1));
+    let game = field(&source, "game");
+
+    // Replay walks every surviving move through the rules, so the undo stack
+    // comes back with the game. The redo stack is session state and does not.
+    let replayed = last(&[&format!("replay game {game}")]);
+    assert_eq!(depths(&replayed), (1, 0), "the redo stack is not carried");
 }
 
 #[test]

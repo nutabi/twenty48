@@ -63,7 +63,7 @@ Every command that reports a game returns the same payload, so a client writes
 one parser. Written `<state>` below.
 
 ```
-seed <u64> score <u32> status <status> moves <u32> legal <list> board <board>
+seed <u64> score <u32> status <status> moves <u32> undoable <u32> redoable <u32> legal <list> board <board>
 ```
 
 | Key | Meaning |
@@ -72,6 +72,8 @@ seed <u64> score <u32> status <status> moves <u32> legal <list> board <board>
 | `score` | Current score: the sum of every merged tile's value, plus any starting score. |
 | `status` | `playing`, `won` or `over`. See below. |
 | `moves` | Moves played. Decreases on `undo`, increases on `redo`. |
+| `undoable` | How many moves `undo` can step back through. Always equal to `moves`. |
+| `redoable` | How many moves `redo` can step forward into. Follows from nothing else in the payload. |
 | `legal` | Directions that would change the board, comma-joined in the order `up,down,left,right`, or `none`. |
 | `board` | 16 comma-separated tile values, row-major, `0` for an empty cell. |
 
@@ -106,7 +108,7 @@ replayed exactly like any other.
 
 ```
 > newgame seed 42
-< ok seed 42 score 0 status playing moves 0 legal up,down,left,right board 0,0,0,0,2,0,0,0,0,0,0,2,0,0,0,0
+< ok seed 42 score 0 status playing moves 0 undoable 0 redoable 0 legal up,down,left,right board 0,0,0,0,2,0,0,0,0,0,0,2,0,0,0,0
 ```
 
 Response: `ok <state>`.
@@ -124,7 +126,7 @@ is spawned, `moves` resets to 0, and both history stacks are cleared.
 
 ```
 > setposition board 2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0 score 4 seed 7
-< ok seed 7 score 4 status playing moves 0 legal down,left,right board 2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+< ok seed 7 score 4 status playing moves 0 undoable 0 redoable 0 legal down,left,right board 2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 ```
 
 Response: `ok <state>`.
@@ -136,7 +138,7 @@ Plays a move, then spawns a tile. `direction` is `up`, `down`, `left` or
 
 ```
 > move left
-< ok moved true gained 4 spawn 1,2,4 seed 7 score 8 status playing moves 1 legal up,down,left,right board 4,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0
+< ok moved true gained 4 spawn 1,2,4 seed 7 score 8 status playing moves 1 undoable 1 redoable 0 legal up,down,left,right board 4,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0
 ```
 
 | Key | Meaning |
@@ -165,7 +167,7 @@ Takes no arguments. See §6.
 
 ```
 > history
-< ok game g1:q:-:A:B:g seed 42 score 0 status playing moves 1 legal up,down,right board 2,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0
+< ok game g1:q:-:A:B:g seed 42 score 0 status playing moves 1 undoable 1 redoable 0 legal up,down,right board 2,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0
 ```
 
 Response: `ok game <string> <state>`.
@@ -179,7 +181,7 @@ position.
 
 ```
 > replay game g1:q:-:A:B:g
-< ok seed 42 score 0 status playing moves 1 legal up,down,right board 2,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0
+< ok seed 42 score 0 status playing moves 1 undoable 1 redoable 0 legal up,down,right board 2,0,0,0,2,0,0,0,2,0,0,0,0,0,0,0
 ```
 
 Response: `ok <state>`, or `error reason bad-notation detail <what>` — see §5.
@@ -192,6 +194,10 @@ Steps back through, or forward into, the surviving line of play.
 generator**, so a move that was undone leaves no trace in the spawn stream.
 Undoing and replaying the same move reproduces the identical spawn — undo is
 not a reroll. Playing a *different* move after an undo discards the redo stack.
+
+`undoable` and `redoable` in the state payload say in advance whether each
+will succeed, exactly as `legal` does for `move`. A client never has to probe
+by sending a command it may have to reverse.
 
 Response: `ok <state>`, or `error reason nothing-to-undo` / `nothing-to-redo`.
 
@@ -308,8 +314,12 @@ So: seed 42, `move left`.
 
 Only the **surviving line of play**. Undo rewinds the generator with the board,
 so an undone move leaves no trace in the spawn stream and replaying what remains
-is exact. The undo and redo stacks are session state and are *not* restored by
-`replay`.
+is exact.
+
+The **redo stack is session state** and is not carried: `redoable` is 0 after a
+`replay`. The undo stack comes back regardless, because `replay` walks every
+recorded move through the rules — so `undoable` equals `moves`, as it always
+does.
 
 A seed reproduces a game **for this engine**, because spawns come from its own
 generator. Another implementation replays a string faithfully only if it draws
