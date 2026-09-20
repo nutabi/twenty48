@@ -407,6 +407,30 @@ fn a_bad_game_string_names_what_was_wrong() {
 }
 
 #[test]
+fn a_line_that_is_not_utf8_is_answered_not_fatal() {
+    let mut engine = Engine::new();
+    engine.execute("newgame seed 42");
+    let before = engine.execute("state").lines.remove(0);
+
+    // A lone 0xFF is never valid UTF-8.
+    let response = engine.execute_bytes(&[b'm', b'o', b'v', b'e', b' ', 0xFF]);
+    assert_eq!(response.lines, vec!["error reason bad-encoding"]);
+    assert!(!response.exit, "the session must survive");
+
+    let after = engine.execute("state").lines.remove(0);
+    assert_eq!(after, before, "the game is untouched");
+}
+
+#[test]
+fn valid_utf8_bytes_behave_exactly_like_a_string() {
+    let mut engine = Engine::new();
+    assert_eq!(
+        engine.execute_bytes(b"newgame seed 42").lines,
+        Engine::new().execute("newgame seed 42").lines
+    );
+}
+
+#[test]
 fn every_response_is_a_tag_followed_by_single_token_key_value_pairs() {
     // Drive every command, in both their working and failing forms, and hold
     // all of it to the one rule that makes the format extensible.

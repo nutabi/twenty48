@@ -32,6 +32,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Incremented only by a change that breaks existing clients.
 pub const PROTOCOL: u32 = 1;
 
+/// The request line was not valid UTF-8.
+pub const BAD_ENCODING: &str = "bad-encoding";
 /// No game has been started yet.
 pub const NO_GAME: &str = "no-game";
 /// The undo stack is empty.
@@ -76,6 +78,18 @@ impl Engine {
     /// Returns the game in progress, if one has been started.
     pub fn game(&self) -> Option<&Game> {
         self.game.as_ref()
+    }
+
+    /// Handles one request line given as raw bytes.
+    ///
+    /// A line that is not valid UTF-8 is answered like any other malformed
+    /// request. Ending the session over it would drop the game in progress,
+    /// which is a far harsher response than every other bad input gets.
+    pub fn execute_bytes(&mut self, line: &[u8]) -> Response {
+        match str::from_utf8(line) {
+            Ok(text) => self.execute(text),
+            Err(_) => Response::line(error_line(BAD_ENCODING, None)),
+        }
     }
 
     /// Handles one request line.
