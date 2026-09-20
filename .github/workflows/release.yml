@@ -6,6 +6,21 @@ on:
   push:
     branches: [main]
 
+# One release run at a time. Two merges landing together would otherwise both
+# check out before either pushes a tag, see the same version untagged, and race
+# to publish it — the loser failing at `cargo publish` for no real reason.
+# Serialised, the second run finds the tag and stops, which is the no-op it
+# should have been.
+#
+# A run in progress is never cancelled: it may be mid-publish. The cost is that
+# a third merge queueing behind an already-pending one makes GitHub drop the
+# pending one, so a version bump in that commit is skipped rather than
+# released. A run takes seconds and releases here are one bump at a time, so
+# that is the cheaper of the two failures.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   CARGO_TERM_COLOR: always
 

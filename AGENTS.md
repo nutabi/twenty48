@@ -84,6 +84,11 @@ Every other merge to `main` is a no-op — the workflow stops the moment it find
 the tag already present. So a release is exactly "merge a version bump", and
 nothing else can trigger one by accident.
 
+Release runs are serialised by a `concurrency` group. Two merges landing
+together would otherwise both check out before either pushed a tag, see the same
+version untagged, and race to publish it. A run in progress is never cancelled,
+because it may be mid-publish.
+
 This needs a `CARGO_REGISTRY_TOKEN` repository secret. Use a crates.io token
 created for CI and scoped to publish-update for this crate, not a copy of a
 local credential.
